@@ -114,6 +114,7 @@ body.ready .stage-msg { display: none; }
 
 /* ---------- panel ---------- */
 .panel {
+  position: relative;
   overflow-y: auto;
   background: var(--paper);
   border-left: 1px solid var(--line);
