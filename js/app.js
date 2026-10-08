@@ -4427,6 +4427,10 @@ void main() {
 		}`};var fc=class extends bn{constructor(){super(),this.isOutputPass=!0,this.uniforms=Ci.clone(_a.uniforms),this.material=new mr({name:_a.name,uniforms:this.uniforms,vertexShader:_a.vertexShader,fragmentShader:_a.fragmentShader}),this._fsQuad=new rs(this.material),this._outputColorSpace=null,this._toneMapping=null}render(e,t,n){this.uniforms.tDiffuse.value=n.texture,this.uniforms.toneMappingExposure.value=e.toneMappingExposure,(this._outputColorSpace!==e.outputColorSpace||this._toneMapping!==e.toneMapping)&&(this._outputColorSpace=e.outputColorSpace,this._toneMapping=e.toneMapping,this.material.defines={},_e.getTransfer(this._outputColorSpace)===lt&&(this.material.defines.SRGB_TRANSFER=""),this._toneMapping===Ua?this.material.defines.LINEAR_TONE_MAPPING="":this._toneMapping===Ia?this.material.defines.REINHARD_TONE_MAPPING="":this._toneMapping===Ea?this.material.defines.CINEON_TONE_MAPPING="":this._toneMapping===Ps?this.material.defines.ACES_FILMIC_TONE_MAPPING="":this._toneMapping===Na?this.material.defines.AGX_TONE_MAPPING="":this._toneMapping===Da?this.material.defines.NEUTRAL_TONE_MAPPING="":this._toneMapping===Ca&&(this.material.defines.CUSTOM_TONE_MAPPING=""),this.material.needsUpdate=!0),this.renderToScreen===!0?(e.setRenderTarget(null),this._fsQuad.render(e)):(e.setRenderTarget(t),this.clear&&e.clear(e.autoClearColor,e.autoClearDepth,e.autoClearStencil),this._fsQuad.render(e))}dispose(){this.material.dispose(),this._fsQuad.dispose()}};var mc={light:"images/veneer-light.jpg",dark:"images/veneer-dark.jpg",ply:"images/veneer-ply.jpg"};var Rc = 26.5,
   Ja = 32.5,
   id = .75,
+  VENEER_MAX_LEN = 120, // veneer sheet length, cm: the longest band must fit
+  VENEER_MAX_H = 12, // veneer sheet height, cm: the tallest band must fit
+  DEF_W = 33, // default width; Ja stays the 32.5 cm reference the geometry is drawn at
+  MAX_H = Math.floor((VENEER_MAX_H * 25 / 7 + 2 * id) * 2) / 2, // the middle band is 7/25 of the support height
   Hs = .4,
   Fs = 2,
   Ac = ["Top", "Upper", "Middle", "Lower", "Bottom"],
@@ -4538,7 +4542,7 @@ void main() {
     frame: "birch",
     hardware: "black",
     height: Rc,
-    diameter: Ja,
+    diameter: DEF_W,
     ply: 3,
     kerfPly: .15,
     kerfOpal: .15,
@@ -4555,7 +4559,7 @@ void main() {
     acrSheetH: 60
   },
   gc = {
-    height: [18, 40],
+    height: [18, MAX_H],
     diameter: [24, 46],
     kelvin: [2200, 4e3],
     brightness: [0, 1],
@@ -4941,7 +4945,7 @@ function im(i, e) {
 }
 
 function Pc() {
-  Ue = um(Le), vc(hi), vc(Mc);
+  fitSize(), Ue = um(Le), vc(hi), vc(Mc);
   let i = {
       bands: [],
       ribs: [],
@@ -5217,11 +5221,21 @@ Xe("#diameter").addEventListener("input", i => {
   Le.diameter = +i.target.value, xd(), syncLaser(), Pm()
 });
 Xe("#resetSize").addEventListener("click", () => {
-  Le.height = Rc, Le.diameter = Ja, Pc()
+  Le.height = Rc, Le.diameter = DEF_W, Pc()
 });
 
 function xd() {
-  Xe("#height").value = Le.height, Xe("#diameter").value = Le.diameter, Xe("#heightOut").textContent = `${cn(Le.height)} cm`, Xe("#diameterOut").textContent = `${cn(Le.diameter)} cm`, Xe("#dimLine").textContent = `${cn(Le.diameter)} cm wide, ${cn(Le.height)} cm high`, Xe("#resetSize").disabled = Le.height === Rc && Le.diameter === Ja
+  Xe("#height").value = Le.height, Xe("#diameter").value = Le.diameter, Xe("#heightOut").textContent = `${cn(Le.height)} cm`, Xe("#diameterOut").textContent = `${cn(Le.diameter, 0)} cm`, Xe("#dimLine").textContent = `${cn(Le.diameter, 0)} cm wide, ${cn(Le.height)} cm high`, Xe("#resetSize").disabled = Le.height === Rc && Le.diameter === DEF_W
+}
+
+// Widest whole-cm lamp whose longest band (the middle one, radius = width / 2) fits the veneer length
+function maxWidth() {
+  return Math.floor((VENEER_MAX_LEN - Le.overlap / 10) / Math.PI - Le.veneer / 10)
+}
+
+function fitSize() {
+  let w = maxWidth();
+  Xe("#height").max = MAX_H, Xe("#diameter").max = w, Le.diameter > w && (Le.diameter = w, xd())
 }
 
 function Ad() {
@@ -5371,7 +5385,7 @@ ls("[data-export]").forEach(i => i.addEventListener("click", () => Im(i.dataset.
 
 function hT(i) {
   let e = structuredClone(hm);
-  return !i || typeof i != "object" || (Array.isArray(i.bands) && i.bands.length === 5 && (e.bands = i.bands.map(t => t in os ? t : "light")), typeof i.lightOn == "boolean" && (e.lightOn = i.lightOn), Number.isFinite(i.brightness) && (e.brightness = Hi(i.brightness, ...gc.brightness)), Number.isFinite(i.kelvin) && (e.kelvin = Math.round(Hi(i.kelvin, ...gc.kelvin) / 50) * 50), i.room in Rm && (e.room = i.room), i.frame in lm && (e.frame = i.frame), i.hardware in cm && (e.hardware = i.hardware), Number.isFinite(i.height) && (e.height = Math.round(Hi(i.height, ...gc.height) * 2) / 2), Number.isFinite(i.diameter) && (e.diameter = Math.round(Hi(i.diameter, ...gc.diameter) * 2) / 2), Number.isFinite(i.ply) && (e.ply = Math.round(Hi(i.ply, ...gc.ply) * 10) / 10), Number.isFinite(i.kerfPly) && (e.kerfPly = Math.round(Hi(i.kerfPly, ...gc.kerf) * 100) / 100), Number.isFinite(i.kerfOpal) && (e.kerfOpal = Math.round(Hi(i.kerfOpal, ...gc.kerf) * 100) / 100), typeof i.marks == "boolean" && (e.marks = i.marks), Number.isFinite(i.acrylic) && (e.acrylic = Math.round(Hi(i.acrylic, ...gc.acrylic) * 10) / 10), Number.isFinite(i.overlap) && (e.overlap = Math.round(Hi(i.overlap, ...gc.overlap))), Number.isFinite(i.veneer) && (e.veneer = Math.round(Hi(i.veneer, ...gc.veneer) * 100) / 100), Object.entries(SHEET_KEYS).forEach(([mat, k]) => {
+  return !i || typeof i != "object" || (Array.isArray(i.bands) && i.bands.length === 5 && (e.bands = i.bands.map(t => t in os ? t : "light")), typeof i.lightOn == "boolean" && (e.lightOn = i.lightOn), Number.isFinite(i.brightness) && (e.brightness = Hi(i.brightness, ...gc.brightness)), Number.isFinite(i.kelvin) && (e.kelvin = Math.round(Hi(i.kelvin, ...gc.kelvin) / 50) * 50), i.room in Rm && (e.room = i.room), i.frame in lm && (e.frame = i.frame), i.hardware in cm && (e.hardware = i.hardware), Number.isFinite(i.height) && (e.height = Math.round(Hi(i.height, ...gc.height) * 2) / 2), Number.isFinite(i.diameter) && (e.diameter = Math.round(Hi(i.diameter, ...gc.diameter))), Number.isFinite(i.ply) && (e.ply = Math.round(Hi(i.ply, ...gc.ply) * 10) / 10), Number.isFinite(i.kerfPly) && (e.kerfPly = Math.round(Hi(i.kerfPly, ...gc.kerf) * 100) / 100), Number.isFinite(i.kerfOpal) && (e.kerfOpal = Math.round(Hi(i.kerfOpal, ...gc.kerf) * 100) / 100), typeof i.marks == "boolean" && (e.marks = i.marks), Number.isFinite(i.acrylic) && (e.acrylic = Math.round(Hi(i.acrylic, ...gc.acrylic) * 10) / 10), Number.isFinite(i.overlap) && (e.overlap = Math.round(Hi(i.overlap, ...gc.overlap))), Number.isFinite(i.veneer) && (e.veneer = Math.round(Hi(i.veneer, ...gc.veneer) * 100) / 100), Object.entries(SHEET_KEYS).forEach(([mat, k]) => {
     i[k + "Sheet"] in SHEETS[mat] && (e[k + "Sheet"] = i[k + "Sheet"]), ["W", "H"].forEach(d => Number.isFinite(i[k + "Sheet" + d]) && (e[k + "Sheet" + d] = Math.round(Hi(i[k + "Sheet" + d], ...gc[k + "Sheet" + d]) * 10) / 10))
   }), e.serial = laserCleanSerial(i.serial)), e.serial || (e.serial = Le.serial || laserNewSerial()), e
 }
