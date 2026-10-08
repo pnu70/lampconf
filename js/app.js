@@ -4577,6 +4577,7 @@ void main() {
   Ct = {
     explode: 0,
     cutaway: !1,
+    hideBands: !1,
     spin: !1,
     importing: !1,
     room: !1
@@ -4986,7 +4987,7 @@ function Pc() {
   let h = new $e(new As(.32, .32, 1, 12), Ns);
   h.name = "Cable", h.castShadow = !0;
   let u = new $e(new As(4.2, 4.6, 2.6, 48), Ns);
-  u.name = "Ceiling canopy", u.position.y = Ue.canopyY + 1.3, i.hw = o, i.cable = h, i.canopy = u, hi.add(e, t, r, a, o, h, u), Cn = i, vm(), Qa(), Wn(), md(), Ad(), xd(), roomPlace()
+  u.name = "Ceiling canopy", u.position.y = Ue.canopyY + 1.3, i.hw = o, i.cable = h, i.canopy = u, hi.add(e, t, r, a, o, h, u), Cn = i, showBands(!Ct.hideBands), vm(), Qa(), Wn(), md(), Ad(), xd(), roomPlace()
 }
 
 function tT(i) {
@@ -5321,6 +5322,13 @@ Nt.addEventListener("start", () => {
 Xe("#cutaway").addEventListener("change", i => {
   Ct.cutaway = i.target.checked, hd()
 });
+Xe("#hideBands").addEventListener("change", i => {
+  Ct.hideBands = i.target.checked, showBands(!Ct.hideBands)
+});
+
+function showBands(i) {
+  Cn && Cn.bands.forEach(e => e.visible = i)
+}
 Xe("#spin").addEventListener("change", i => {
   Ct.spin = i.target.checked, Nt.autoRotate = Ct.spin
 });
@@ -5355,7 +5363,7 @@ function Um(i, e) {
 function Im(i) {
   Ct.importing && wc();
   let e = Ct.explode;
-  Ct.explode = 0, Qa(), hi.userData = {
+  Ct.explode = 0, Qa(), showBands(!0), hi.userData = {
     lampConfig: structuredClone(Le),
     generator: "Nordgrain veneer pendant configurator",
     units: "metres"
@@ -5363,7 +5371,7 @@ function Im(i) {
   let t = ls("[data-export]");
   t.forEach(s => s.disabled = !0);
   let n = () => {
-    Ct.explode = e, Qa(), t.forEach(s => s.disabled = !1)
+    Ct.explode = e, Qa(), showBands(!Ct.hideBands), t.forEach(s => s.disabled = !1)
   };
   new is().parse(hi, s => {
     let r = `${wm()}.${i?"glb":"gltf"}`,
