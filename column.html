@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Layered veneer pendant configurator – Nordgrain</title>
+<title>Layered veneer column lamp configurator – Nordgrain</title>
 <link rel="icon" href="images/favicon.svg">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -14,35 +14,28 @@
     <div class="stage-msg" id="loadingMsg">Preparing the lamp…</div>
     <div class="stage-msg" id="webglError" hidden>This browser can't show 3D graphics. Turn on hardware acceleration or try another browser.</div>
 
-    <div class="import-note glass" id="importNote" hidden>
-      <span>Viewing <b id="importName"></b></span>
-      <button type="button" id="backToLamp">Back to the lamp</button>
-    </div>
-
     <div class="toolbar" role="toolbar" aria-label="View options">
       <div class="tool-group glass" id="views" role="group" aria-label="Camera">
         <button type="button" data-view="front" aria-pressed="true">Front</button>
-        <button type="button" data-view="below" aria-pressed="false">Below</button>
+        <button type="button" data-view="shade" aria-pressed="false">Shade</button>
         <button type="button" data-view="above" aria-pressed="false">Above</button>
       </div>
-      <label class="tool-check glass"><input type="checkbox" id="cutaway"> Cutaway</label>
       <label class="tool-check glass"><input type="checkbox" id="hideBands"> Hide bands</label>
       <label class="tool-range glass">Explode <input type="range" id="explode" min="0" max="1" step="0.01" value="0"></label>
       <label class="tool-check glass"><input type="checkbox" id="spin"> Rotate</label>
-      <label class="tool-check glass"><input type="checkbox" id="roomView"> Dining room</label>
     </div>
   </main>
 
-  <aside class="panel" aria-label="Configure the Nordgrain lamp">
+  <aside class="panel" aria-label="Configure the Nordgrain column lamp">
     <header>
       <nav class="seg lamp-switch" aria-label="Lamp">
-        <a href="index.html" aria-current="page">Pendant</a>
-        <a href="column.html">Column lamp</a>
+        <a href="index.html">Pendant</a>
+        <a href="column.html" aria-current="page">Column lamp</a>
       </nav>
       <div class="brand"><svg class="brand-logo" viewBox="0 0 450 126" role="img" aria-labelledby="brandTitle" focusable="false"><title id="brandTitle">Nordgrain</title><path fill="currentColor" d="M54.5 0L54.5 20L53 20Q74.85 20 90.3 35.45Q105.75 50.9 105.75 72.75Q105.75 94.6 90.3 110.05Q74.85 125.5 53 125.5Q31.15 125.5 15.7 110.05Q0.25 94.6 0.25 72.75Q0.25 50.9 15.7 35.45Q31.15 20 53 20L51.5 20L51.5 0ZM100.25 72.75Q100.25 53.18 86.41 39.34Q72.57 25.5 53 25.5Q33.43 25.5 19.59 39.34Q5.75 53.18 5.75 72.75Q5.75 92.32 19.59 106.16Q33.43 120 53 120Q72.57 120 86.41 106.16Q100.25 92.32 100.25 72.75ZM94.75 70.25Q94.75 87.54 82.52 99.77Q70.29 112 53 112Q35.71 112 23.48 99.77Q11.25 87.54 11.25 70.25Q11.25 52.96 23.48 40.73Q35.71 28.5 53 28.5Q70.29 28.5 82.52 40.73Q94.75 52.96 94.75 70.25ZM89.25 70.25Q89.25 55.24 78.63 44.62Q68.01 34 53 34Q37.99 34 27.37 44.62Q16.75 55.24 16.75 70.25Q16.75 85.26 27.37 95.88Q37.99 106.5 53 106.5Q68.01 106.5 78.63 95.88Q89.25 85.26 89.25 70.25ZM83.75 67.75Q83.75 80.49 74.74 89.49Q65.74 98.5 53 98.5Q40.26 98.5 31.26 89.49Q22.25 80.49 22.25 67.75Q22.25 55.01 31.26 46.01Q40.26 37 53 37Q65.74 37 74.74 46.01Q83.75 55.01 83.75 67.75ZM78.25 67.75Q78.25 57.29 70.85 49.9Q63.46 42.5 53 42.5Q42.54 42.5 35.15 49.9Q27.75 57.29 27.75 67.75Q27.75 78.21 35.15 85.6Q42.54 93 53 93Q63.46 93 70.85 85.6Q78.25 78.21 78.25 67.75ZM327 52.75L327 93.75Q326.98 101.03 322.29 106.58Q317.61 112.14 310.45 113.39Q303.29 114.65 297 111.01Q290.7 107.38 288.21 100.55L294.79 98.15Q296.41 102.59 300.5 104.95Q304.59 107.31 309.24 106.5Q313.89 105.68 316.94 102.07Q319.98 98.46 320 93.75L320 87.96Q314.49 92.75 307 92.75Q298.72 92.75 292.86 86.89Q287 81.03 287 72.75Q287 64.47 292.86 58.61Q298.72 52.75 307 52.75Q314.49 52.75 320 57.54L320 52.75ZM281 32.75L281 92.75L274 92.75L274 87.96Q268.49 92.75 261 92.75Q252.72 92.75 246.86 86.89Q241 81.03 241 72.75Q241 64.47 246.86 58.61Q252.72 52.75 261 52.75Q268.49 52.75 274 57.54L274 32.75ZM395 52.75L395 92.75L388 92.75L388 87.96Q382.49 92.75 375 92.75Q366.72 92.75 360.86 86.89Q355 81.03 355 72.75Q355 64.47 360.86 58.61Q366.72 52.75 375 52.75Q382.49 52.75 388 57.54L388 52.75ZM214 72.75Q214 81.03 208.14 86.89Q202.28 92.75 194 92.75Q185.72 92.75 179.86 86.89Q174 81.03 174 72.75Q174 64.47 179.86 58.61Q185.72 52.75 194 52.75Q202.28 52.75 208.14 58.61Q214 64.47 214 72.75ZM72.75 65.25Q72.75 73.43 66.96 79.21Q61.18 85 53 85Q44.82 85 39.03 79.21Q33.25 73.43 33.25 65.25Q33.25 57.07 39.03 51.28Q44.82 45.5 53 45.5Q61.18 45.5 66.96 51.28Q72.75 57.07 72.75 65.25ZM141 52.75L141 55.98Q145.33 52.75 151 52.75Q158.04 52.75 163.02 57.73Q168 62.71 168 69.75L168 92.75L161 92.75L161 69.75Q161 65.61 158.07 62.68Q155.14 59.75 151 59.75Q146.86 59.75 143.93 62.68Q141 65.61 141 69.75L141 92.75L134 92.75L134 52.75ZM423 52.75L423 55.98Q427.33 52.75 433 52.75Q440.04 52.75 445.02 57.73Q450 62.71 450 69.75L450 92.75L443 92.75L443 69.75Q443 65.61 440.07 62.68Q437.14 59.75 433 59.75Q428.86 59.75 425.93 62.68Q423 65.61 423 69.75L423 92.75L416 92.75L416 52.75ZM67.25 65.25Q67.25 59.35 63.08 55.17Q58.9 51 53 51Q47.1 51 42.92 55.17Q38.75 59.35 38.75 65.25Q38.75 71.15 42.92 75.33Q47.1 79.5 53 79.5Q58.9 79.5 63.08 75.33Q67.25 71.15 67.25 65.25ZM207 72.75Q207 67.36 203.19 63.56Q199.38 59.75 194 59.75Q188.62 59.75 184.81 63.56Q181 67.36 181 72.75Q181 78.14 184.81 81.94Q188.62 85.75 194 85.75Q199.38 85.75 203.19 81.94Q207 78.14 207 72.75ZM274 72.75Q274 67.36 270.19 63.56Q266.39 59.75 261 59.75Q255.62 59.75 251.81 63.56Q248 67.36 248 72.75Q248 78.14 251.81 81.94Q255.62 85.75 261 85.75Q266.39 85.75 270.19 81.94Q274 78.14 274 72.75ZM320 72.75Q320 67.36 316.19 63.56Q312.39 59.75 307 59.75Q301.61 59.75 297.81 63.56Q294 67.36 294 72.75Q294 78.14 297.81 81.94Q301.61 85.75 307 85.75Q312.39 85.75 316.19 81.94Q320 78.14 320 72.75ZM388 72.75Q388 67.36 384.19 63.56Q380.39 59.75 375 59.75Q369.61 59.75 365.81 63.56Q362 67.36 362 72.75Q362 78.14 365.81 81.94Q369.61 85.75 375 85.75Q380.39 85.75 384.19 81.94Q388 78.14 388 72.75ZM227 52.75L227 55.98Q231.33 52.75 237 52.75L241 52.75L241 59.75L237 59.75Q232.86 59.75 229.93 62.68Q227 65.61 227 69.75L227 92.75L220 92.75L220 52.75ZM341 52.75L341 55.98Q345.33 52.75 351 52.75L355 52.75L355 59.75L351 59.75Q346.86 59.75 343.93 62.68Q341 65.61 341 69.75L341 92.75L334 92.75L334 52.75ZM409 52.75L409 92.75L402 92.75L402 52.75Z"/><path fill="#E39B2D" d="M60.5 61.5C60.5 65.64 57.14 69 53 69C48.86 69 45.5 65.64 45.5 61.5C45.5 57.36 48.86 54 53 54C57.14 54 60.5 57.36 60.5 61.5ZM410 40.75C410 43.24 407.98 45.25 405.5 45.25C403.02 45.25 401 43.24 401 40.75C401 38.26 403.02 36.25 405.5 36.25C407.98 36.25 410 38.26 410 40.75Z"/></svg></div>
-      <h1>Layered veneer pendant</h1>
-      <p class="dims" id="dimLine">33 cm wide, 26.5 cm high</p>
-      <p class="lede" id="lede">Five bands of thin veneer on four 3.0&nbsp;mm plywood supports, locked into 3.0&nbsp;mm opal acrylic: a disc at the top and a ring at the bottom.</p>
+      <h1>Layered veneer column lamp</h1>
+      <p class="dims" id="dimLine"></p>
+      <p class="lede" id="lede"></p>
     </header>
 
     <section aria-labelledby="h-veneer">
@@ -60,14 +53,66 @@
         <input type="range" id="overlap" min="5" max="50" step="1" value="20" aria-describedby="overlapHint">
         <output id="overlapOut" for="overlap">20 mm</output>
       </div>
-      <p class="note" id="overlapHint">Band lengths include the seam overlap and 1.7 mm extra for wrapping 0.55 mm veneer around the supports. The slits in the supports are 1.2 mm wide, and the middle band rests on a 2 mm ledge on each support that reaches 1.05 mm out.</p>
+      <p class="note" id="overlapHint"></p>
     </section>
 
-    <section aria-labelledby="h-light">
+    <section aria-labelledby="h-bands">
+      <h2 id="h-bands">Bands</h2>
+      <p class="hint">Four big bands wrap the wide parts of the supports and three small bands sit in the notches between them. The supports and discs follow the band sizes. Veneer comes in 120 × 12 cm sheets, which limits the band sizes.</p>
+      <div class="row">
+        <label for="bigD">Big width</label>
+        <input type="range" id="bigD" min="12" max="37" step="0.5" value="16">
+        <output id="bigDOut" for="bigD"></output>
+      </div>
+      <div class="row">
+        <label for="bigH">Big height</label>
+        <input type="range" id="bigH" min="3" max="12" step="0.5" value="9.5">
+        <output id="bigHOut" for="bigH"></output>
+      </div>
+      <div class="row">
+        <label for="smallD">Small width</label>
+        <input type="range" id="smallD" min="7" max="35" step="0.5" value="13">
+        <output id="smallDOut" for="smallD"></output>
+      </div>
+      <div class="row">
+        <label for="smallH">Small height</label>
+        <input type="range" id="smallH" min="3" max="12" step="0.5" value="5">
+        <output id="smallHOut" for="smallH"></output>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-stand">
+      <h2 id="h-stand">Foot and base</h2>
+      <p class="hint">A round wooden foot carries the shade and stands on a base of stacked cork discs.</p>
+      <div class="row">
+        <label for="footH">Foot height</label>
+        <input type="range" id="footH" min="5" max="120" step="1" value="24">
+        <output id="footHOut" for="footH"></output>
+      </div>
+      <div class="row">
+        <label for="footD">Foot thickness</label>
+        <input type="range" id="footD" min="2" max="10" step="0.5" value="5.5">
+        <output id="footDOut" for="footD"></output>
+      </div>
+      <div class="row">
+        <label for="baseD">Base width</label>
+        <input type="range" id="baseD" min="8" max="40" step="0.5" value="14">
+        <output id="baseDOut" for="baseD"></output>
+      </div>
+      <div class="row">
+        <label for="baseH">Base height</label>
+        <input type="range" id="baseH" min="1" max="10" step="0.5" value="5">
+        <output id="baseHOut" for="baseH"></output>
+      </div>
+      <button type="button" class="link-btn" id="resetSize" disabled>Reset sizes</button>
+    </section>
+
+    <section aria-labelledby="h-light" id="lightSection">
       <h2 id="h-light">Light</h2>
+      <p class="hint">A light tube runs up the middle of the shade, between the two discs.</p>
       <div class="row two">
-        <span>Bulb</span>
-        <button type="button" class="switch" id="lightOn" role="switch" aria-checked="true" aria-label="Bulb"><span class="track"></span><span id="lightState">On</span></button>
+        <span>Light tube</span>
+        <button type="button" class="switch" id="lightOn" role="switch" aria-checked="true" aria-label="Light tube"><span class="track"></span><span id="lightState">On</span></button>
       </div>
       <div id="lightControls">
         <div class="row dim-when-off">
@@ -94,7 +139,7 @@
       <h2 id="h-frame">Frame</h2>
       <div class="row two">
         <span>Supports</span>
-        <div class="seg" id="frame" role="group" aria-label="Support finish">
+        <div class="seg" id="frame" role="group" aria-label="Support and disc finish">
           <button type="button" data-value="birch">Birch</button>
           <button type="button" data-value="black">Black</button>
           <button type="button" data-value="white">White</button>
@@ -105,34 +150,6 @@
         <input type="range" id="ply" min="2" max="6" step="0.1" value="3">
         <output id="plyOut" for="ply">3.0 mm</output>
       </div>
-      <div class="row">
-        <label for="acrylic">Acrylic</label>
-        <input type="range" id="acrylic" min="2" max="8" step="0.1" value="3">
-        <output id="acrylicOut" for="acrylic">3.0 mm</output>
-      </div>
-      <div class="row two">
-        <span>Socket, cable</span>
-        <div class="seg" id="hardware" role="group" aria-label="Socket and cable colour">
-          <button type="button" data-value="black">Black</button>
-          <button type="button" data-value="white">White</button>
-        </div>
-      </div>
-    </section>
-
-    <section aria-labelledby="h-size">
-      <h2 id="h-size">Size</h2>
-      <p class="hint">All parts scale together. Veneer comes in 120 × 12 cm sheets, which limits the width and height. Material thickness doesn't scale: set the plywood and acrylic under Frame.</p>
-      <div class="row">
-        <label for="height">Height</label>
-        <input type="range" id="height" min="18" max="44" step="0.5" value="26.5">
-        <output id="heightOut" for="height">26.5 cm</output>
-      </div>
-      <div class="row">
-        <label for="diameter">Width</label>
-        <input type="range" id="diameter" min="24" max="37" step="1" value="33">
-        <output id="diameterOut" for="diameter">33 cm</output>
-      </div>
-      <button type="button" class="link-btn" id="resetSize" disabled>Reset to 33 × 26.5 cm</button>
     </section>
 
     <section aria-labelledby="h-cut">
@@ -144,75 +161,26 @@
       <p class="note" id="veneerTotal"></p>
     </section>
 
-    <section aria-labelledby="h-laser" id="laserSection">
+    <section aria-labelledby="h-laser">
       <h2 id="h-laser">Laser cutting</h2>
-      <p class="hint">Cutting files for the Epilog Fusion Pro 48 (1219 × 914&nbsp;mm bed). Plywood and acrylic parts are laid out on the stock sheets you choose; place each sheet in the top-left corner of the bed. Veneer bands aren't included. Outlines are offset by half the kerf, so slots and notches come out at their nominal size.</p>
-      <div class="row two">
-        <label for="plySheet">Plywood sheet</label>
-        <select id="plySheet" class="sel-in"></select>
-      </div>
-      <div class="row" id="plyCustom" hidden>
-        <span id="plyCustomLabel">Sheet size</span>
-        <div class="size-pair" role="group" aria-labelledby="plyCustomLabel">
-          <input type="number" id="plySheetW" class="num-in" min="10" max="121.9" step="0.1" value="61" aria-label="Plywood sheet width, cm">
-          <span aria-hidden="true">×</span>
-          <input type="number" id="plySheetH" class="num-in" min="10" max="91.4" step="0.1" value="61" aria-label="Plywood sheet height, cm">
-        </div>
-        <output>cm</output>
-      </div>
-      <div class="row two">
-        <label for="acrSheet">Acrylic sheet</label>
-        <select id="acrSheet" class="sel-in"></select>
-      </div>
-      <div class="row" id="acrCustom" hidden>
-        <span id="acrCustomLabel">Sheet size</span>
-        <div class="size-pair" role="group" aria-labelledby="acrCustomLabel">
-          <input type="number" id="acrSheetW" class="num-in" min="10" max="121.9" step="0.1" value="37.5" aria-label="Acrylic sheet width, cm">
-          <span aria-hidden="true">×</span>
-          <input type="number" id="acrSheetH" class="num-in" min="10" max="91.4" step="0.1" value="60" aria-label="Acrylic sheet height, cm">
-        </div>
-        <output>cm</output>
-      </div>
-      <div class="row">
-        <label for="kerfPly">Plywood kerf</label>
-        <input type="range" id="kerfPly" min="0" max="0.4" step="0.01" value="0.15">
-        <output id="kerfPlyOut" for="kerfPly">0.15 mm</output>
-      </div>
-      <div class="row">
-        <label for="kerfOpal">Acrylic kerf</label>
-        <input type="range" id="kerfOpal" min="0" max="0.4" step="0.01" value="0.15">
-        <output id="kerfOpalOut" for="kerfOpal">0.15 mm</output>
-      </div>
-      <div class="row">
-        <label for="serial">Serial no.</label>
-        <input type="text" id="serial" class="text-in" maxlength="24" autocomplete="off" spellcheck="false" aria-describedby="serialHint">
-        <button type="button" class="link-btn" id="newSerial">New</button>
-      </div>
-      <label class="check-row"><input type="checkbox" id="marks" checked> Engrave the serial number on one support</label>
-      <p class="note" id="serialHint">The serial goes into the file name and the file, and is engraved on support 1, on the tab above the top disc where it's hidden once assembled.</p>
+      <p class="hint">One file with the four plywood supports and both discs, drawn at full size in millimetres. Cut lines are red hairlines. Veneer bands, the foot and the base aren't included.</p>
       <p class="note" id="laserNote"></p>
       <div class="file-actions">
-        <button type="button" class="btn primary" id="laserAll">Download laser file (.svg)</button>
+        <button type="button" class="btn primary" id="laserDownload">Download laser file (.svg)</button>
       </div>
-      <p class="note">Or download one sheet per file, ready to send to the laser:</p>
-      <div class="chips sheet-links" id="laserSheets" role="group" aria-label="Download a single sheet"></div>
     </section>
 
-    <section aria-labelledby="h-file" id="fileSection">
+    <section aria-labelledby="h-file">
       <h2 id="h-file">File</h2>
-      <p class="hint">Exports the assembled lamp in metres with your settings stored inside. Open a file exported here to pick up where you left off.</p>
+      <p class="hint">Exports the assembled lamp in metres.</p>
       <div class="file-actions">
         <button type="button" class="btn primary" data-export="glb">Download .glb</button>
         <button type="button" class="btn" data-export="gltf">Download .gltf</button>
-        <button type="button" class="btn" id="openModel">Open model…</button>
-        <input type="file" id="fileInput" accept=".glb,.gltf,.glf,model/gltf-binary,model/gltf+json" class="visually-hidden" tabindex="-1" aria-hidden="true">
       </div>
-      <p class="note">You can also drop a .glb or .gltf file anywhere on the page.</p>
     </section>
   </aside>
 </div>
-<div class="dropzone" id="dropzone" hidden>Drop the .glb or .gltf file to open it</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="js/app.js"></script>
+<script type="module" src="js/column.js"></script>
 </body>
 </html>

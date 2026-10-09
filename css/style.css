@@ -164,6 +164,10 @@ h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.005e
 .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--paper-2); border-radius: 9px; }
 .seg button { border: 0; background: transparent; padding: 6px 13px; border-radius: 7px; font-size: 14px; color: var(--muted); }
 .seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.lamp-switch { margin: 0 0 22px; }
+.lamp-switch a { padding: 6px 13px; border-radius: 7px; font-size: 14px; color: var(--muted); text-decoration: none; }
+.lamp-switch a:hover { color: var(--ink); }
+.lamp-switch a[aria-current="page"] { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
 
 .switch { display: inline-flex; align-items: center; gap: 10px; border: 0; background: transparent; padding: 0; font-size: 14px; }
 .switch .track { width: 40px; height: 24px; border-radius: 12px; background: var(--line); position: relative; transition: background .2s; }
