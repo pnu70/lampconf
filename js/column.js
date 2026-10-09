@@ -5,6 +5,7 @@
 // up the middle. The shade stands on a round wooden foot on a base of stacked cork.
 // Model units are centimetres; the lamp group is scaled to metres for the scene and exports.
 import * as THREE from "./vendor/three.min.js";
+import { fmm, xmlEsc, laserNewSerial, laserCleanSerial, laserFitText, laserOffset } from "./laser-text.js";
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -91,7 +92,13 @@ const cfg = {
   lightOn: true,
   brightness: .7,
   kelvin: 2700,
-  room: "day"
+  room: "day",
+  plySheet: "610x610", // laser stock sheet, or "custom" with plySheetW x plySheetH cm
+  plySheetW: 61,
+  plySheetH: 61,
+  kerf: .15, // mm
+  marks: true, // engrave the serial on support 1
+  serial: laserNewSerial()
 };
 const view = { explode: 0, hideBands: false, spin: false };
 
@@ -432,7 +439,7 @@ function build() {
   parts.layers = layers;
 
   lamp.add(bands, fins, top, bottom, light, foot, base);
-  showBands(!view.hideBands), applyExplode(), applyLook(), syncOutputs(), renderElev(), renderCutList(), renderLaserNote();
+  showBands(!view.hideBands), applyExplode(), applyLook(), syncOutputs(), renderElev(), renderCutList(), syncLaser();
 }
 
 function showBands(on) {
@@ -740,54 +747,188 @@ function exportModel(binary) {
 $$("[data-export]").forEach(b => b.addEventListener("click", () => exportModel(b.dataset.export === "glb")));
 
 // ---------- laser file: plywood supports and discs, in mm ----------
-const MARGIN = 10, GAP = 6;
-function laserPlan() {
-  const g = geo, mm = v => v * 10;
-  const finW = mm(g.R + g.ledgeOut - g.rIn), finL = mm(g.L), discD = mm(g.R * 2), items = [];
-  // Supports lie along the sheet, one above the other
-  for (let k = 0; k < 4; k++) items.push({ kind: "fin", x: MARGIN, y: MARGIN + k * (finW + GAP), w: finL, h: finW, n: k + 1 });
-  const discY = MARGIN + 4 * (finW + GAP);
-  // Discs below the supports, side by side if they fit beside each other within the support length
-  const side = discD * 2 + GAP <= finL;
-  items.push({ kind: "disc", x: MARGIN, y: discY, w: discD, h: discD, hole: false, name: "top" });
-  items.push({ kind: "disc", x: side ? MARGIN + discD + GAP : MARGIN, y: side ? discY : discY + discD + GAP, w: discD, h: discD, hole: true, name: "bottom" });
-  const W = Math.max(...items.map(i => i.x + i.w)) + MARGIN, H = Math.max(...items.map(i => i.y + i.h)) + MARGIN;
-  return { items, W, H };
+// Same conventions as the pendant: red hairline cuts, black filled engraving, one layer per
+// stock sheet, outlines offset by half the kerf so the parts come out at their true size.
+const LASER = { margin: 6, gap: 6, sheetGap: 60, cutColor: "#FF0000", cutWidth: .01, engraveColor: "#000000" };
+const PLY_SHEETS = {
+  bed: { label: "Laser bed, 121.9 × 91.4 cm", w: 1219.2, h: 914.4 },
+  "610x610": { label: "61 × 61 cm (24 × 24 in)", w: 609.6, h: 609.6 },
+  "610x457": { label: "61 × 45.7 cm (24 × 18 in)", w: 609.6, h: 457.2 },
+  "610x305": { label: "61 × 30.5 cm (24 × 12 in)", w: 609.6, h: 304.8 },
+  "305x610": { label: "30.5 × 61 cm (12 × 24 in)", w: 304.8, h: 609.6 },
+  "305x305": { label: "30.5 × 30.5 cm (12 × 12 in)", w: 304.8, h: 304.8 },
+  "600x600": { label: "60 × 60 cm", w: 600, h: 600 },
+  "600x400": { label: "60 × 40 cm", w: 600, h: 400 },
+  "600x300": { label: "60 × 30 cm", w: 600, h: 300 },
+  custom: { label: "Custom size" }
+};
+const cm1 = v => fmt(v / 10).replace(/\.0$/, ""); // mm -> "61" or "45.7" (cm)
+const sheetSize = () => cfg.plySheet === "custom" ? { w: cfg.plySheetW * 10, h: cfg.plySheetH * 10 } : { w: PLY_SHEETS[cfg.plySheet].w, h: PLY_SHEETS[cfg.plySheet].h };
+
+// Each part: cut outlines in its own frame with the bounding box at the origin, plus any engraving
+function laserParts() {
+  const g = geo, k = cfg.kerf / 2, parts = [];
+  const frame = (outer, extra = {}) => {
+    const o = laserOffset(outer, k), x0 = Math.min(...o.map(p => p[0])), y0 = Math.min(...o.map(p => p[1]));
+    return { cut: [o.map(([x, y]) => [x - x0, y - y0])], x0, y0, w: Math.max(...o.map(p => p[0])) - x0, h: Math.max(...o.map(p => p[1])) - y0, holes: [], texts: [], ...extra };
+  };
+  // Supports: length along x, depth from the centre along y
+  const fin = finOutline(g).map(([x, y]) => [y * 10, (x - g.rIn) * 10]);
+  const serial = laserCleanSerial(cfg.serial), low = g.sections[0];
+  for (let n = 1; n <= 4; n++) {
+    const p = frame(fin, { id: `support-${n}`, title: `Support ${n}` });
+    // The serial goes on support 1, along the bottom wide section, inside the shade
+    n === 1 && cfg.marks && serial && p.texts.push({ str: serial, cx: (low.y0 + low.y1) * 5 - p.x0, cy: (g.R - g.rIn) * 5 - p.y0, maxW: (low.y1 - low.y0) * 10 - 16, cap: 4 });
+    parts.push(p);
+  }
+  const disc = discOutline(g).map(([x, y]) => [x * 10, -y * 10]);
+  for (const [name, hole] of [["top", false], ["bottom", true]]) {
+    const p = frame(disc, { id: `disc-${name}`, title: `Disc, ${name}` });
+    hole && p.holes.push({ cx: -p.x0, cy: -p.y0, r: CABLE_HOLE * 10 - k }); // a hole cut shrinks the hole
+    parts.push(p);
+  }
+  return parts;
 }
 
-function laserSvg() {
-  const g = geo, plan = laserPlan(), f = v => (Math.round(v * 1000) / 1000).toString();
-  const path = (pts, ox, oy) => pts.map(([x, y], n) => `${n ? "L" : "M"}${f(ox + x)} ${f(oy + y)}`).join("") + "Z";
-  const out = [];
-  plan.items.forEach(it => {
-    if (it.kind === "fin") {
-      // Support length runs along x, depth from the centre along y
-      const pts = finOutline(g).map(([x, y]) => [y * 10, (x - g.rIn) * 10]);
-      out.push(`<path id="support-${it.n}" d="${path(pts, it.x, it.y)}"/>`);
-    } else {
-      const c = it.w / 2, pts = discOutline(g).map(([x, y]) => [x * 10, -y * 10]);
-      out.push(`<path id="disc-${it.name}" d="${path(pts, it.x + c, it.y + c)}"/>`);
-      it.hole && out.push(`<circle cx="${f(it.x + c)}" cy="${f(it.y + c)}" r="${f(CABLE_HOLE * 10)}"/>`);
+// Shelf packing onto as many stock sheets as needed; a part turns 90° only if it doesn't fit as drawn
+function laserPlan() {
+  const S = sheetSize(), m = LASER.margin, gp = LASER.gap, sheets = [];
+  let sh = null, x = 0, y = 0, rowH = 0;
+  const newSheet = () => {
+    sh = { w: S.w, h: S.h, placed: [] }, sheets.push(sh), x = m, y = m, rowH = 0;
+  };
+  for (const p of laserParts()) {
+    const opts = [[p.w, p.h, false], [p.h, p.w, true]].filter(([w, h]) => w <= S.w - 2 * m && h <= S.h - 2 * m).slice(0, 1);
+    if (!opts.length) return { size: S, sheets: [], problem: `${p.title} is ${cm1(p.w)} × ${cm1(p.h)} cm and doesn't fit on a ${cm1(S.w)} × ${cm1(S.h)} cm sheet. Pick a bigger sheet.` };
+    sh || newSheet();
+    for (let tries = 0; tries < 2; tries++) {
+      const here = opts.find(([w, h]) => x + w <= S.w - m && y + h <= S.h - m);
+      const below = !here && opts.find(([w, h]) => y + rowH + gp + h <= S.h - m && m + w <= S.w - m);
+      if (here || below) {
+        below && (y += rowH + gp, x = m, rowH = 0);
+        const [w, h, rot] = here || below;
+        sh.placed.push({ p, x, y, w, h, rot }), x += w + gp, rowH = Math.max(rowH, h);
+        break;
+      }
+      newSheet();
     }
+  }
+  return { size: S, sheets };
+}
+
+function laserSheetSvg(sheet, idx, ox) {
+  const id = `sheet-${idx + 1}`, cut = [], eng = [];
+  for (const { p, x, y, rot } of sheet.placed) {
+    // Turning 90° clockwise: (u, v) -> (h - v, u), with h the part's unturned height
+    const at = (u, v) => rot ? [ox + x + p.h - v, y + u] : [ox + x + u, y + v];
+    p.cut.forEach(o => cut.push(`      <path id="${id}-${p.id}" d="${o.map((q, n) => `${n ? "L" : "M"}${at(...q).map(fmm).join(" ")}`).join("")}Z" fill="none" stroke="${LASER.cutColor}" stroke-width="${LASER.cutWidth}"/>`));
+    p.holes.forEach(h => {
+      const [cx, cy] = at(h.cx, h.cy);
+      cut.unshift(`      <circle id="${id}-${p.id}-hole" cx="${fmm(cx)}" cy="${fmm(cy)}" r="${fmm(h.r)}" fill="none" stroke="${LASER.cutColor}" stroke-width="${LASER.cutWidth}"/>`);
+    });
+    p.texts.forEach(t => {
+      const [cx, cy] = at(t.cx, t.cy), d = laserFitText(t.str, cx, cy, t.maxW, t.cap, rot ? 90 : 0);
+      d && eng.push(`      <path d="${d}" fill="${LASER.engraveColor}" stroke="none"/>`);
+    });
+  }
+  const layer = (lid, label, body) => body.length ? `    <g id="${id}-${lid}" inkscape:groupmode="layer" inkscape:label="${label}">\n${body.join("\n")}\n    </g>\n` : "";
+  // Inner cuts (holes) come first so parts don't drop out before their holes are cut
+  return `  <g id="${id}" inkscape:groupmode="layer" inkscape:label="${xmlEsc(`${idx + 1} Plywood ${fmt(cfg.ply)} mm, ${cm1(sheet.w)} × ${cm1(sheet.h)} cm`)}">\n${layer("engrave", "Engrave (serial)", eng)}${layer("cut", "Cut", cut)}  </g>`;
+}
+
+function laserSvg(plan, which = null) {
+  const list = which == null ? plan.sheets.map((s, n) => [s, n]) : [[plan.sheets[which], which]], offs = [];
+  let W = 0;
+  list.forEach(([s], k) => {
+    offs.push(W), W += s.w + (k < list.length - 1 ? LASER.sheetGap : 0);
   });
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${f(plan.W)}mm" height="${f(plan.H)}mm" viewBox="0 0 ${f(plan.W)} ${f(plan.H)}">
-<title>Nordgrain veneer column lamp, plywood ${fmt(cfg.ply)} mm: 4 supports and 2 discs</title>
-<g fill="none" stroke="#ff0000" stroke-width="0.01">
-${out.join("\n")}
-</g>
+  const H = Math.max(...list.map(([s]) => s.h)), serial = laserCleanSerial(cfg.serial);
+  const meta = {
+    generator: "Nordgrain veneer column lamp configurator", serial, created: new Date().toISOString(), units: "mm",
+    cut: { fill: "none", stroke: LASER.cutColor, strokeWidth_mm: LASER.cutWidth },
+    engrave: { fill: LASER.engraveColor, stroke: "none", content: cfg.marks && serial ? "serial number on support 1" : "none" },
+    plywood_mm: cfg.ply, plywoodSheet_mm: [plan.size.w, plan.size.h], kerf_mm: cfg.kerf,
+    joint_mm: { discSlotWidth: cfg.ply, discSlotDepth: +((geo.R - geo.rJ) * 10).toFixed(2), bandSlit: [+(geo.slitW * 10).toFixed(2), +(geo.slitD * 10).toFixed(2)], ledge: [LEDGE_H * 10, +(geo.ledgeOut * 10).toFixed(2)] },
+    veneer: "not included", lampConfig: cfg
+  };
+  const title = which == null ? "all sheets" : `sheet ${which + 1} of ${plan.sheets.length}`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Nordgrain layered veneer column lamp, serial ${serial}. Laser cutting file, 1:1 in mm.
+     Each sheet is a layer the size of its stock sheet, with sub-layers Engrave (serial, filled text, no stroke)
+     and Cut (fill none, ${LASER.cutWidth} mm stroke). Outlines are already offset by half the kerf (${fmt(cfg.kerf, 2)} mm).
+     Veneer bands, the foot and the base are not included. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" width="${fmm(W)}mm" height="${fmm(H)}mm" viewBox="0 0 ${fmm(W)} ${fmm(H)}">
+  <title>${xmlEsc(`${serial} Nordgrain layered veneer column lamp, ${title}`)}</title>
+  <metadata id="nordgrain-lamp"><![CDATA[${JSON.stringify(meta)}]]></metadata>
+${list.map(([s, n], k) => laserSheetSvg(s, n, offs[k])).join("\n")}
 </svg>
 `;
 }
 
-function renderLaserNote() {
-  const p = laserPlan();
-  $("#laserNote").textContent = `The parts fit a ${cmTxt(Math.ceil(p.W) / 10)} × ${cmTxt(Math.ceil(p.H) / 10)} cm sheet of ${fmt(cfg.ply)} mm plywood. The disc slots are ${fmt(cfg.ply)} mm wide and ${fmt((geo.R - geo.rJ) * 10, 0)} mm deep; each support has a ${fmt(LIP * 10, 0)} × ${fmt(cfg.ply)} mm notch at both ends that hooks under its disc. Each big band stands on a ${fmt(LEDGE_H * 10, 0)} mm ledge that reaches ${fmt(geo.ledgeOut * 10)} mm past the support, and the small bands' top edges go into ${fmt(geo.slitW * 10)} × ${fmt(geo.slitD * 10, 0)} mm slits.`;
+const laserFileName = (plan, which = null) => `${baseName()}-${laserCleanSerial(cfg.serial)}${which == null ? "-laser" : `-sheet-${which + 1}`}.svg`;
+function laserDownload(which = null) {
+  const plan = laserPlan();
+  if (plan.problem) return toast(plan.problem, "error");
+  const name = laserFileName(plan, which);
+  save(new Blob([laserSvg(plan, which)], { type: "image/svg+xml" }), name), toast(`Downloaded ${name}`);
 }
-$("#laserDownload").addEventListener("click", () => {
-  const name = `${baseName()}-plywood-laser.svg`;
-  save(new Blob([laserSvg()], { type: "image/svg+xml" }), name), toast(`Downloaded ${name}`);
+
+Object.entries(PLY_SHEETS).forEach(([key, s]) => {
+  const o = document.createElement("option");
+  o.value = key, o.textContent = s.label, $("#plySheet").appendChild(o);
 });
+
+function syncLaser() {
+  const plan = laserPlan(), g = geo, n = plan.sheets.length;
+  $("#plySheet").value = cfg.plySheet, $("#plyCustom").hidden = cfg.plySheet !== "custom";
+  document.activeElement !== $("#plySheetW") && ($("#plySheetW").value = cfg.plySheetW);
+  document.activeElement !== $("#plySheetH") && ($("#plySheetH").value = cfg.plySheetH);
+  $("#kerf").value = cfg.kerf, $("#kerfOut").textContent = `${fmt(cfg.kerf, 2)} mm`;
+  document.activeElement !== $("#serial") && ($("#serial").value = cfg.serial), $("#marks").checked = cfg.marks;
+  const layout = plan.problem || `Plywood: ${n} sheet${n > 1 ? "s" : ""} of ${cm1(plan.size.w)} × ${cm1(plan.size.h)} cm.`;
+  const note = $("#laserNote");
+  note.textContent = `${layout} The disc slots are ${fmt(cfg.ply)} mm wide and ${fmt((g.R - g.rJ) * 10, 0)} mm deep; each support has a ${fmt(LIP * 10, 0)} × ${fmt(cfg.ply)} mm notch at both ends that hooks under its disc. Each big band stands on a ${fmt(LEDGE_H * 10, 0)} mm ledge that reaches ${fmt(g.ledgeOut * 10)} mm past the support, and the small bands' top edges go into ${fmt(g.slitW * 10)} × ${fmt(g.slitD * 10, 0)} mm slits.`;
+  note.dataset.kind = plan.problem ? "error" : "";
+  $("#laserAll").disabled = !!plan.problem;
+  const chips = $("#laserSheets");
+  chips.innerHTML = "";
+  plan.sheets.forEach((s, k) => {
+    const b = document.createElement("button");
+    b.type = "button", b.className = "chip", b.textContent = `${k + 1}. Plywood ${fmt(cfg.ply)} mm`;
+    b.title = `${s.placed.map(q => q.p.title).join(", ")}. Download as its own file.`;
+    b.addEventListener("click", () => laserDownload(k)), chips.appendChild(b);
+  });
+}
+
+$("#plySheet").addEventListener("change", e => {
+  cfg.plySheet = e.target.value, syncLaser();
+});
+["W", "H"].forEach(d => {
+  const el = $("#plySheet" + d), lim = d === "W" ? 121.9 : 91.4;
+  el.addEventListener("input", () => {
+    const v = parseFloat(el.value);
+    Number.isFinite(v) && (cfg["plySheet" + d] = Math.round(clamp(v, 10, lim) * 10) / 10, syncLaser());
+  });
+  el.addEventListener("change", () => {
+    el.value = cfg["plySheet" + d], syncLaser();
+  });
+});
+$("#kerf").addEventListener("input", e => {
+  cfg.kerf = +e.target.value, syncLaser();
+});
+$("#marks").addEventListener("change", e => {
+  cfg.marks = e.target.checked, syncLaser();
+});
+$("#serial").addEventListener("input", e => {
+  cfg.serial = laserCleanSerial(e.target.value), syncLaser();
+});
+$("#serial").addEventListener("change", e => {
+  cfg.serial || (cfg.serial = laserNewSerial()), e.target.value = cfg.serial, syncLaser();
+});
+$("#newSerial").addEventListener("click", () => {
+  cfg.serial = laserNewSerial(), $("#serial").value = cfg.serial, syncLaser();
+});
+$("#laserAll").addEventListener("click", () => laserDownload(null));
 
 // ---------- start ----------
 let plyTex = null;
@@ -801,7 +942,7 @@ Promise.all(["light", "dark", "ply"].map(k => loadImage(k === "ply" ? "images/ve
   resize(), build(), frameView("front");
   document.body.classList.add("ready");
   requestAnimationFrame(frame);
-  window.__column = { cfg, view, build, layout: () => geo, laserSvg };
+  window.__column = { cfg, view, build, layout: () => geo, laserPlan, laserSvg };
 }).catch(err => {
   console.error(err), toast("The veneer textures failed to load. Reload the page.", "error");
 });

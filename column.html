@@ -189,11 +189,38 @@
 
     <section aria-labelledby="h-laser">
       <h2 id="h-laser">Laser cutting</h2>
-      <p class="hint">One file with the four plywood supports and both discs, drawn at full size in millimetres. Cut lines are red hairlines. Veneer bands, the foot and the base aren't included.</p>
+      <p class="hint">Cutting files for the four plywood supports and both discs, laid out on the stock sheets you choose; place each sheet in the top-left corner of the bed. Veneer bands, the foot and the base aren't included. Outlines are offset by half the kerf so the parts come out at their true size.</p>
+      <div class="row two">
+        <label for="plySheet">Plywood sheet</label>
+        <select id="plySheet" class="sel-in"></select>
+      </div>
+      <div class="row" id="plyCustom" hidden>
+        <span id="plyCustomLabel">Sheet size</span>
+        <div class="size-pair" role="group" aria-labelledby="plyCustomLabel">
+          <input type="number" id="plySheetW" class="num-in" min="10" max="121.9" step="0.1" value="61" aria-label="Plywood sheet width, cm">
+          <span aria-hidden="true">×</span>
+          <input type="number" id="plySheetH" class="num-in" min="10" max="91.4" step="0.1" value="61" aria-label="Plywood sheet height, cm">
+        </div>
+        <output>cm</output>
+      </div>
+      <div class="row">
+        <label for="kerf">Kerf</label>
+        <input type="range" id="kerf" min="0" max="0.4" step="0.01" value="0.15">
+        <output id="kerfOut" for="kerf">0.15 mm</output>
+      </div>
+      <div class="row">
+        <label for="serial">Serial no.</label>
+        <input type="text" id="serial" class="text-in" maxlength="24" autocomplete="off" spellcheck="false" aria-describedby="serialHint">
+        <button type="button" class="link-btn" id="newSerial">New</button>
+      </div>
+      <label class="check-row"><input type="checkbox" id="marks" checked> Engrave the serial number on one support</label>
+      <p class="note" id="serialHint">The serial goes into the file name and the file, and is engraved on support 1 along its bottom wide section, on the inside of the shade.</p>
       <p class="note" id="laserNote"></p>
       <div class="file-actions">
-        <button type="button" class="btn primary" id="laserDownload">Download laser file (.svg)</button>
+        <button type="button" class="btn primary" id="laserAll">Download laser file (.svg)</button>
       </div>
+      <p class="note">Or download one sheet per file, ready to send to the laser:</p>
+      <div class="chips sheet-links" id="laserSheets" role="group" aria-label="Download a single sheet"></div>
     </section>
 
     <section aria-labelledby="h-file">
