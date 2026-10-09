@@ -19,11 +19,39 @@ const smooth = (a, b, x) => {
 // ---------- materials and limits ----------
 const VENEER_MAX_LEN = 120; // veneer sheet length, cm
 const VENEER_MAX_H = 12; // veneer sheet height, cm
-const BAND_GAP = 0.2; // a notch is this much taller than its small band, cm
+const SLIT_CLEAR = 0.1; // the small band's top edge stops this far short of the end of its slit, cm
+const LEDGE_H = 0.2; // the ledge under each big band is 2 mm tall
 const LIP = 0.5; // each support reaches this far under the disc, inside the disc slot, cm
 const TUBE_R = 1.25; // light tube radius, cm
 const CORE_R = 3.5; // supports start this far from the centre, room for the light tube, cm
 const CORK_LAYER = 1.25; // thickness of one cork disc, cm
+
+// Foot: material, then colour within it. grain: wood texture tinted by the colour
+const FOOT_MATS = {
+  wood: { label: "Wood", colors: {
+    beech: { label: "Beech", color: 0xf1d3b3, rough: .62, grain: true },
+    oak: { label: "Oak", color: 0xdcb07a, rough: .6, grain: true },
+    walnut: { label: "Walnut", color: 0x8a5a38, rough: .55, grain: true },
+    black: { label: "Black stain", color: 0x3a332d, rough: .55, grain: true }
+  } },
+  metal: { label: "Metal", colors: {
+    steel: { label: "Steel", color: 0xc4c7ca, rough: .32, metal: 1 },
+    black: { label: "Black", color: 0x262626, rough: .42, metal: .6 },
+    brass: { label: "Brass", color: 0xcfa75e, rough: .3, metal: 1 },
+    copper: { label: "Copper", color: 0xc07a52, rough: .32, metal: 1 }
+  } },
+  painted: { label: "Painted", colors: {
+    white: { label: "White", color: 0xeeeae4, rough: .5 },
+    black: { label: "Black", color: 0x232323, rough: .5 },
+    sage: { label: "Sage", color: 0x8fa596, rough: .5 },
+    clay: { label: "Clay", color: 0xb8644a, rough: .5 }
+  } }
+};
+const BASE_MATS = {
+  cork: { label: "Cork" },
+  concrete: { label: "Concrete" },
+  wood: { label: "Oak" }
+};
 
 const VENEERS = {
   light: { label: "Light", url: "images/veneer-light.jpg", cmH: 10.5, glow: 1, rough: .7 },
@@ -55,7 +83,11 @@ const cfg = {
   veneer: .55, // mm
   overlap: 20, // mm
   ply: 3, // mm
+  lap: 5, // mm the big bands reach past the wide sections over the small bands
   frame: "birch",
+  footMat: "wood",
+  footColor: "beech",
+  baseMat: "cork",
   lightOn: true,
   brightness: .7,
   kelvin: 2700,
@@ -71,9 +103,9 @@ function limits() {
   const big = maxBandD();
   return {
     bigD: [12, big],
-    bigH: [3, VENEER_MAX_H],
+    bigH: [Math.max(3, cfg.lap / 10 + 1.5), VENEER_MAX_H],
     smallD: [7, Math.min(big, cfg.bigD) - 2], // the wide sections reach at least 1 cm past the notches
-    smallH: [3, VENEER_MAX_H],
+    smallH: [Math.max(3, cfg.lap / 10 + 1.5), VENEER_MAX_H], // keep at least 1.5 cm of the small band clear of the big bands
     footH: [5, 120],
     footD: [2, Math.min(10, cfg.baseD - 2)],
     baseD: [8, 40],
@@ -95,31 +127,40 @@ function layout(c = cfg) {
   const R = c.bigD / 2, r = c.smallD / 2;
   const rIn = Math.min(CORE_R, r - 1.5); // supports are at least 1.5 cm deep at the notches
   const rJ = rIn + LIP;
-  const notch = c.smallH + BAND_GAP;
+  // The bands overlap so no light gets out between them. A big band stands on a ledge at the
+  // bottom of its wide section and reaches lap above it, over the small band above. A small band
+  // stands on the step at the bottom of its notch and its top edge reaches lap up into slits in
+  // the wide section above, behind the big band there.
+  const lap = c.lap / 10;
+  const slitW = Math.max(.12, vt + .06), slitD = lap + SLIT_CLEAR;
+  const ledgeOut = vt + .1; // the ledge reaches 1 mm past the veneer
+  const wide = LEDGE_H + c.bigH - lap, notch = c.smallH - lap;
   // Sections of a support from the bottom up
   const sections = [];
   let y = 0;
   BAND_KINDS.slice().reverse().forEach((kind, n) => {
-    const h = kind === "big" ? c.bigH : notch;
+    const h = kind === "big" ? wide : notch;
     sections.push({ kind, y0: y, y1: y + h, xo: kind === "big" ? R : r, band: BAND_KINDS.length - 1 - n }), y += h;
   });
-  const L = y; // support length = shade height
+  const L = y; // support length
   const y0 = c.baseH + c.footH; // shade bottom above the floor
   const bands = sections.map(s => {
-    const h = s.kind === "big" ? c.bigH : c.smallH;
-    const mid = (s.y0 + s.y1) / 2;
-    const rr = s.xo; // the band wraps the support edges
-    return { i: s.band, kind: s.kind, r: rr, h, yBot: y0 + mid - h / 2, yTop: y0 + mid + h / 2, len: 2 * Math.PI * (rr + vt / 2) + ov, vt, ov };
+    const big = s.kind === "big", h = big ? c.bigH : c.smallH, yBot = y0 + s.y0 + (big ? LEDGE_H : 0);
+    return { i: s.band, kind: s.kind, r: s.xo, h, yBot, yTop: yBot + h, len: 2 * Math.PI * (s.xo + vt / 2) + ov, vt, ov };
   }).sort((a, b) => a.i - b.i);
-  return { t, vt, ov, R, r, rIn, rJ, L, y0, sections, bands, total: y0 + L, finAngles: [0, 1, 2, 3].map(k => k * Math.PI / 2) };
+  // The top big band stands lap above the top disc
+  return { t, vt, ov, R, r, rIn, rJ, L, y0, lap, slitW, slitD, ledgeOut, sections, bands, total: y0 + L + lap, finAngles: [0, 1, 2, 3].map(k => k * Math.PI / 2) };
 }
 
 // Support outline in its own plane: x = distance from the centre, y = height from the shade bottom
 function finOutline(g) {
-  const { sections: s, rIn, rJ, L, t } = g, p = [[rJ, 0]];
+  const { sections: s, rIn, rJ, L, t, r, R, slitW, slitD, ledgeOut } = g, p = [[rJ, 0]];
   s.forEach((sec, n) => {
-    p.push([sec.xo, sec.y0], [sec.xo, sec.y1]);
-    n < s.length - 1 && p.push([s[n + 1].xo, sec.y1]);
+    if (sec.kind === "big") {
+      // Slit for the top edge of the small band below, then the ledge the big band stands on
+      n > 0 && p.push([r, sec.y0 + slitD], [r + slitW, sec.y0 + slitD], [r + slitW, sec.y0]);
+      p.push([R + ledgeOut, sec.y0], [R + ledgeOut, sec.y0 + LEDGE_H], [R, sec.y0 + LEDGE_H], [R, sec.y1]);
+    } else p.push([r, sec.y0], [r, sec.y1]);
   });
   p.push([rJ, L], [rJ, L - t], [rIn, L - t], [rIn, t], [rJ, t]);
   // Drop repeated points where neighbouring sections have the same depth
@@ -247,6 +288,48 @@ function corkTexture() {
   return tex;
 }
 
+// Concrete: grey with soft blotches and small air pores
+function concreteTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 512;
+  const g = c.getContext("2d");
+  g.fillStyle = "#a9a8a2", g.fillRect(0, 0, 512, 512);
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let n = 0; n < 260; n++) {
+    const x = rnd() * 512, y = rnd() * 512, r = 20 + rnd() * 70, light = rnd() < .5;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, light ? "rgba(200,199,193,.22)" : "rgba(120,119,114,.2)"), gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr, g.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  for (let n = 0; n < 7000; n++) {
+    g.fillStyle = rnd() < .7 ? `rgba(70,70,66,${.15 + rnd() * .3})` : `rgba(235,234,228,${.15 + rnd() * .3})`;
+    g.fillRect(rnd() * 512, rnd() * 512, 1 + rnd() * 1.5, 1 + rnd() * 1.5);
+  }
+  for (let n = 0; n < 380; n++) {
+    g.fillStyle = `rgba(55,55,52,${.35 + rnd() * .4})`;
+    g.beginPath(), g.arc(rnd() * 512, rnd() * 512, .8 + rnd() * 2.2, 0, Math.PI * 2), g.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace, tex.wrapS = tex.wrapT = THREE.RepeatWrapping, tex.userData.mimeType = "image/png";
+  return tex;
+}
+
+// Wood with the grain running up: the light veneer photo turned on its side and greyed,
+// so the material colour sets the species
+const GRAIN_W = 10.5, GRAIN_H = 10.5 * 2048 / 581; // cm of wood the texture shows across and up
+function grainTexture(img) {
+  const c = document.createElement("canvas");
+  c.width = img.height, c.height = img.width;
+  const g = c.getContext("2d");
+  g.filter = "grayscale(1) brightness(1.45) contrast(1.15)";
+  g.translate(c.width, 0), g.rotate(Math.PI / 2), g.drawImage(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace, tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy(), tex.userData.mimeType = "image/jpeg";
+  return tex;
+}
+
 // Veneer is lit from inside; dim the glow on the inner faces as the pendant does
 function insideDamp(m) {
   m.onBeforeCompile = s => {
@@ -259,8 +342,9 @@ function insideDamp(m) {
 
 const bandMats = BAND_KINDS.map((k, i) => insideDamp(new THREE.MeshStandardMaterial({ name: `Veneer band ${i + 1}`, side: THREE.DoubleSide, roughness: .7 })));
 const plyMat = new THREE.MeshStandardMaterial({ name: "Plywood", roughness: .78 });
-const footMat = new THREE.MeshStandardMaterial({ name: "Foot, beech", color: 0xf1d3b3, roughness: .62 });
-const corkMat = new THREE.MeshStandardMaterial({ name: "Base, cork", roughness: .95 });
+const footMat = new THREE.MeshStandardMaterial({ name: "Foot" });
+const baseMat = new THREE.MeshStandardMaterial({ name: "Base" });
+const tex = {}; // cork, concrete, footGrain, baseGrain
 const tubeMat = new THREE.MeshStandardMaterial({ name: "Light tube, opal", color: 0xf4f1ea, roughness: .35 });
 const capMat = new THREE.MeshStandardMaterial({ name: "Tube caps", color: 0x1c1d1d, roughness: .5 });
 
@@ -336,13 +420,13 @@ function build() {
   const foot = new THREE.Mesh(new THREE.CylinderGeometry(cfg.footD / 2, cfg.footD / 2, cfg.footH, 64), footMat);
   foot.name = "Foot", foot.position.y = cfg.baseH + cfg.footH / 2, foot.castShadow = foot.receiveShadow = true;
 
-  const base = new THREE.Group();
-  base.name = "Base, cork";
-  const layers = Math.max(1, Math.round(cfg.baseH / CORK_LAYER)), lh = cfg.baseH / layers;
-  corkMat.map && corkMat.map.repeat.set(cfg.baseD / 10, cfg.baseD / 10);
+  // Cork comes in discs stacked to height; concrete and oak are one piece
+  const base = new THREE.Group(), cork = cfg.baseMat === "cork";
+  base.name = `Base, ${BASE_MATS[cfg.baseMat].label.toLowerCase()}`;
+  const layers = cork ? Math.max(1, Math.round(cfg.baseH / CORK_LAYER)) : 1, lh = cfg.baseH / layers;
   for (let n = 0; n < layers; n++) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(cfg.baseD / 2, cfg.baseD / 2, lh - .04, 72), corkMat);
-    m.name = `Cork disc ${n + 1}`, m.position.y = lh * n + lh / 2, m.castShadow = m.receiveShadow = true;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(cfg.baseD / 2, cfg.baseD / 2, lh - (cork ? .04 : 0), 72), baseMat);
+    m.name = cork ? `Cork disc ${n + 1}` : base.name, m.position.y = lh * n + lh / 2, m.castShadow = m.receiveShadow = true;
     base.add(m);
   }
   parts.layers = layers;
@@ -401,6 +485,17 @@ function applyLook() {
   plyMat.color.set(fin.color), plyMat.map = fin.map ? plyTex : null, plyMat.roughness = fin.rough;
   plyMat.emissive.copy(col), plyMat.emissiveIntensity = on ? (cfg.frame === "black" ? .05 : .16) * room.glow * n : 0;
   plyMat.name = `${fin.label} plywood, ${fmt(cfg.ply)} mm`, plyMat.needsUpdate = true;
+  const foot = FOOT_MATS[cfg.footMat].colors[cfg.footColor];
+  footMat.color.set(foot.color), footMat.roughness = foot.rough, footMat.metalness = foot.metal || 0;
+  footMat.map = foot.grain ? tex.footGrain : null;
+  tex.footGrain.repeat.set(Math.PI * cfg.footD / GRAIN_W, cfg.footH / GRAIN_H);
+  footMat.name = `Foot, ${footLabel().toLowerCase()}`, footMat.needsUpdate = true;
+  const bm = cfg.baseMat;
+  baseMat.color.set(bm === "wood" ? 0xdcb07a : 0xffffff), baseMat.roughness = bm === "wood" ? .6 : bm === "concrete" ? .92 : .95;
+  baseMat.map = bm === "cork" ? tex.cork : bm === "concrete" ? tex.concrete : tex.baseGrain;
+  [tex.cork, tex.concrete].forEach(t => t.repeat.set(Math.PI * cfg.baseD / 30, cfg.baseH / 10));
+  tex.baseGrain.repeat.set(Math.PI * cfg.baseD / GRAIN_W, cfg.baseH / GRAIN_H);
+  baseMat.name = `Base, ${BASE_MATS[bm].label.toLowerCase()}`, baseMat.needsUpdate = true;
   tubeMat.emissive.copy(col), tubeMat.emissiveIntensity = on ? room.tube * (.6 + 2 * n) : 0;
   tubeLights.forEach(l => {
     l.color.copy(col), l.intensity = on ? (cfg.room === "day" ? .25 : .5) * (.15 + n) : 0;
@@ -411,7 +506,7 @@ function applyLook() {
 // ---------- panel ----------
 const SLIDERS = {
   bigD: v => `${cmTxt(v)} cm`, bigH: v => `${cmTxt(v)} cm`, smallD: v => `${cmTxt(v)} cm`, smallH: v => `${cmTxt(v)} cm`,
-  footH: v => `${cmTxt(v)} cm`, footD: v => `${cmTxt(v)} cm`, baseD: v => `${cmTxt(v)} cm`, baseH: v => `${cmTxt(v)} cm`
+  lap: v => `${v} mm`, footH: v => `${cmTxt(v)} cm`, footD: v => `${cmTxt(v)} cm`, baseD: v => `${cmTxt(v)} cm`, baseH: v => `${cmTxt(v)} cm`
 };
 
 function syncOutputs() {
@@ -423,7 +518,7 @@ function syncOutputs() {
   $("#overlap").value = cfg.overlap, $("#overlapOut").textContent = `${cfg.overlap} mm`;
   $("#ply").value = cfg.ply, $("#plyOut").textContent = `${fmt(cfg.ply)} mm`;
   $("#dimLine").textContent = `${cmTxt(Math.max(cfg.bigD, cfg.baseD))} cm wide, ${cmTxt(g.total)} cm high`;
-  $("#lede").textContent = `Seven bands of thin veneer on four ${fmt(cfg.ply)} mm plywood supports between two plywood discs. The shade is ${cmTxt(g.L)} cm tall and stands on a ${cmTxt(cfg.footH)} cm wooden foot on a cork base.`;
+  $("#lede").textContent = `Seven bands of thin veneer on four ${fmt(cfg.ply)} mm plywood supports between two plywood discs. The bands overlap by ${cfg.lap} mm so no light gets out between them. The shade is ${cmTxt(g.L + g.lap)} cm tall and stands on a ${cmTxt(cfg.footH)} cm ${footLabel().toLowerCase()} foot on ${/^[aeiou]/i.test(BASE_MATS[cfg.baseMat].label) ? "an" : "a"} ${BASE_MATS[cfg.baseMat].label.toLowerCase()} base.`;
   $("#overlapHint").textContent = `Band lengths include the ${cfg.overlap} mm seam overlap and ${fmt(Math.PI * cfg.veneer, 1)} mm extra for wrapping ${fmt(cfg.veneer, 2)} mm veneer around the supports. The widest band can be ${cmTxt(maxBandD())} cm across.`;
   $("#resetSize").disabled = Object.keys(SIZE_DEFAULTS).every(k => cfg[k] === SIZE_DEFAULTS[k]);
 }
@@ -453,15 +548,15 @@ function scheduleBuild() {
 
 // Elevation picker: one row per band, as tall as its section and as wide as the band
 function renderElev() {
-  const el = $("#elev"), g = geo, scale = 250 / g.L;
+  const el = $("#elev"), g = geo, scale = 250 / g.bands.reduce((a, b) => a + b.h, 0);
   el.innerHTML = "";
-  g.sections.slice().reverse().forEach(sec => {
-    const b = g.bands[sec.band], ven = cfg.bands[b.i], other = ven === "light" ? "dark" : "light";
+  g.bands.forEach(b => {
+    const ven = cfg.bands[b.i], other = ven === "light" ? "dark" : "light";
     const row = document.createElement("div");
-    row.className = "elev-row", row.style.height = `${(sec.y1 - sec.y0) * scale}px`;
+    row.className = "elev-row", row.style.height = `${b.h * scale}px`;
     const chip = document.createElement("button");
     chip.type = "button", chip.className = "band-chip", chip.dataset.veneer = ven, chip.dataset.i = b.i;
-    chip.style.width = `${b.r / g.R * 100}%`, chip.style.height = `${b.h / (sec.y1 - sec.y0) * 100}%`;
+    chip.style.width = `${b.r / g.R * 100}%`;
     chip.style.backgroundImage = `url(${VENEERS[ven].url})`;
     chip.setAttribute("aria-label", `${BAND_NAMES[b.i]} band, ${VENEERS[ven].label.toLowerCase()} veneer. Switch to ${other}.`);
     chip.addEventListener("click", () => {
@@ -500,11 +595,12 @@ function renderCutList() {
   [...groups.values()].sort((a, b) => (a.b.kind === "big" ? 0 : 1) - (b.b.kind === "big" ? 0 : 1)).forEach(({ b, ven, n }) => {
     rows.push([`${b.kind === "big" ? "Big" : "Small"} band, ${ven} veneer`, n, `${fmt(b.len)} × ${fmt(b.h)} cm`]);
   });
-  rows.push([`Support, ${fmt(cfg.ply)} mm plywood`, 4, `${fmt(g.L)} × ${fmt(g.R - g.rIn)} cm`]);
+  rows.push([`Support, ${fmt(cfg.ply)} mm plywood`, 4, `${fmt(g.L)} × ${fmt(g.R + g.ledgeOut - g.rIn)} cm`]);
   rows.push([`Disc, ${fmt(cfg.ply)} mm plywood`, 2, `Ø ${fmt(cfg.bigD)} cm`]);
   rows.push(["Light tube", 1, `Ø ${fmt(TUBE_R * 2)} × ${fmt(parts.tubeLen)} cm`]);
-  rows.push(["Foot, round wood", 1, `Ø ${fmt(cfg.footD)} × ${fmt(cfg.footH)} cm`]);
-  rows.push([`Base, cork disc`, parts.layers, `Ø ${fmt(cfg.baseD)} × ${fmt(cfg.baseH / parts.layers)} cm`]);
+  rows.push([`Foot, ${footLabel().toLowerCase()}`, 1, `Ø ${fmt(cfg.footD)} × ${fmt(cfg.footH)} cm`]);
+  rows.push(cfg.baseMat === "cork" ? ["Base, cork disc", parts.layers, `Ø ${fmt(cfg.baseD)} × ${fmt(cfg.baseH / parts.layers)} cm`]
+    : [`Base, ${BASE_MATS[cfg.baseMat].label.toLowerCase()}`, 1, `Ø ${fmt(cfg.baseD)} × ${fmt(cfg.baseH)} cm`]);
   const tb = $("#cutList tbody");
   tb.innerHTML = "";
   rows.forEach(([part, qty, size]) => {
@@ -544,6 +640,36 @@ function segGroup(sel, key) {
 }
 segGroup("#room", "room");
 segGroup("#frame", "frame");
+
+function footLabel() {
+  const m = cfg.footMat, c = FOOT_MATS[m].colors[cfg.footColor].label;
+  return m === "wood" ? `${c} wood` : m === "metal" ? `${c} metal` : `Painted ${c.toLowerCase()}`;
+}
+
+// Foot material, then the colours that material comes in
+function renderFootColors() {
+  $$("#footMat button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.value === cfg.footMat)));
+  const el = $("#footColor");
+  el.innerHTML = "";
+  Object.entries(FOOT_MATS[cfg.footMat].colors).forEach(([key, c]) => {
+    const b = document.createElement("button");
+    b.type = "button", b.className = "chip swatch-chip", b.dataset.value = key, b.setAttribute("aria-pressed", String(key === cfg.footColor));
+    b.innerHTML = `<span class="swatch" style="background:#${c.color.toString(16).padStart(6, "0")}"></span>${c.label}`;
+    b.addEventListener("click", () => {
+      cfg.footColor = key, renderFootColors(), applyLook(), renderCutList();
+    });
+    el.appendChild(b);
+  });
+}
+$$("#footMat button").forEach(b => b.addEventListener("click", () => {
+  cfg.footMat = b.dataset.value, cfg.footColor = Object.keys(FOOT_MATS[cfg.footMat].colors)[0];
+  renderFootColors(), applyLook(), renderCutList();
+}));
+renderFootColors();
+$$("#baseMat button").forEach(b => b.addEventListener("click", () => {
+  cfg.baseMat = b.dataset.value, $$("#baseMat button").forEach(x => x.setAttribute("aria-pressed", String(x === b))), build();
+}));
+$$("#baseMat button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.value === cfg.baseMat)));
 
 // ---------- view ----------
 let currentView = "front";
@@ -617,7 +743,7 @@ $$("[data-export]").forEach(b => b.addEventListener("click", () => exportModel(b
 const MARGIN = 10, GAP = 6;
 function laserPlan() {
   const g = geo, mm = v => v * 10;
-  const finW = mm(g.R - g.rIn), finL = mm(g.L), discD = mm(g.R * 2), items = [];
+  const finW = mm(g.R + g.ledgeOut - g.rIn), finL = mm(g.L), discD = mm(g.R * 2), items = [];
   // Supports lie along the sheet, one above the other
   for (let k = 0; k < 4; k++) items.push({ kind: "fin", x: MARGIN, y: MARGIN + k * (finW + GAP), w: finL, h: finW, n: k + 1 });
   const discY = MARGIN + 4 * (finW + GAP);
@@ -656,7 +782,7 @@ ${out.join("\n")}
 
 function renderLaserNote() {
   const p = laserPlan();
-  $("#laserNote").textContent = `The parts fit a ${cmTxt(Math.ceil(p.W) / 10)} × ${cmTxt(Math.ceil(p.H) / 10)} cm sheet of ${fmt(cfg.ply)} mm plywood. The disc slots are ${fmt(cfg.ply)} mm wide and ${fmt((geo.R - geo.rJ) * 10, 0)} mm deep; each support has a ${fmt(LIP * 10, 0)} × ${fmt(cfg.ply)} mm notch at both ends that hooks under its disc.`;
+  $("#laserNote").textContent = `The parts fit a ${cmTxt(Math.ceil(p.W) / 10)} × ${cmTxt(Math.ceil(p.H) / 10)} cm sheet of ${fmt(cfg.ply)} mm plywood. The disc slots are ${fmt(cfg.ply)} mm wide and ${fmt((geo.R - geo.rJ) * 10, 0)} mm deep; each support has a ${fmt(LIP * 10, 0)} × ${fmt(cfg.ply)} mm notch at both ends that hooks under its disc. Each big band stands on a ${fmt(LEDGE_H * 10, 0)} mm ledge that reaches ${fmt(geo.ledgeOut * 10)} mm past the support, and the small bands' top edges go into ${fmt(geo.slitW * 10)} × ${fmt(geo.slitD * 10, 0)} mm slits.`;
 }
 $("#laserDownload").addEventListener("click", () => {
   const name = `${baseName()}-plywood-laser.svg`;
@@ -670,7 +796,7 @@ function frame() {
 }
 Promise.all(["light", "dark", "ply"].map(k => loadImage(k === "ply" ? "images/veneer-ply.jpg" : VENEERS[k].url).then(img => images[k] = img))).then(() => {
   plyTex = imageTexture(images.ply), plyTex.repeat.set(1 / 22, 1 / 7.5);
-  corkMat.map = corkTexture();
+  tex.cork = corkTexture(), tex.concrete = concreteTexture(), tex.footGrain = grainTexture(images.light), tex.baseGrain = tex.footGrain.clone(), tex.baseGrain.needsUpdate = true;
   $("#brightness").value = cfg.brightness, $("#kelvin").value = cfg.kelvin, syncLight();
   resize(), build(), frameView("front");
   document.body.classList.add("ready");

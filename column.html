@@ -79,11 +79,29 @@
         <input type="range" id="smallH" min="3" max="12" step="0.5" value="5">
         <output id="smallHOut" for="smallH"></output>
       </div>
+      <div class="row">
+        <label for="lap">Overlap</label>
+        <input type="range" id="lap" min="2" max="15" step="1" value="5" aria-describedby="lapHint">
+        <output id="lapOut" for="lap"></output>
+      </div>
+      <p class="note" id="lapHint">How far each big band reaches past its part of the supports and over the small bands, so no light gets out between them. Each big band stands on a small ledge on every support, and the top edges of the small bands go into slits behind the big bands.</p>
     </section>
 
     <section aria-labelledby="h-stand">
       <h2 id="h-stand">Foot and base</h2>
-      <p class="hint">A round wooden foot carries the shade and stands on a base of stacked cork discs.</p>
+      <p class="hint">A round foot carries the shade and stands on a heavy base.</p>
+      <div class="row two">
+        <span>Foot</span>
+        <div class="seg" id="footMat" role="group" aria-label="Foot material">
+          <button type="button" data-value="wood">Wood</button>
+          <button type="button" data-value="metal">Metal</button>
+          <button type="button" data-value="painted">Painted</button>
+        </div>
+      </div>
+      <div class="row two">
+        <span>Colour</span>
+        <div class="chips" id="footColor" role="group" aria-label="Foot colour"></div>
+      </div>
       <div class="row">
         <label for="footH">Foot height</label>
         <input type="range" id="footH" min="5" max="120" step="1" value="24">
@@ -93,6 +111,14 @@
         <label for="footD">Foot thickness</label>
         <input type="range" id="footD" min="2" max="10" step="0.5" value="5.5">
         <output id="footDOut" for="footD"></output>
+      </div>
+      <div class="row two">
+        <span>Base</span>
+        <div class="seg" id="baseMat" role="group" aria-label="Base material">
+          <button type="button" data-value="cork">Cork</button>
+          <button type="button" data-value="concrete">Concrete</button>
+          <button type="button" data-value="wood">Oak</button>
+        </div>
       </div>
       <div class="row">
         <label for="baseD">Base width</label>
